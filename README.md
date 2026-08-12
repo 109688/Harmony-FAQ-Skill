@@ -1,229 +1,119 @@
 ---
-name: harmony-ux-device-test
+name: harmony-listing-faq
 description: >-
-  Tests HarmonyOS apps on a real connected phone from a real-user perspective
-  against AppGallery review and listing standards (审核指南 50104, 审核FAQ 50106,
-  doc 50180, 上架检测FAQ专题): maps every feature, walks each flow with
-  hdc/uitest, and reports bugs immediately with screenshot/layout/hilog
-  evidence. Use when the user asks to 真机测试, 用户体验测试, 全功能测试,
-  体验应用, 点测, 对照审核指南, UX walkthrough, or to verify every function
-  on a linked HarmonyOS device.
+  Applies HarmonyOS app/atomic-service listing detection standards from the
+  official 上架检测FAQ专题 (UX, stability, power, performance, compatibility,
+  security), plus zufangtong ArkTS UI/UX implementation patterns for pages,
+  views, common components, and utils under entry/src/main/ets. Use when
+  reviewing or fixing AppGallery上架/审核驳回 issues, running 上架预检/自检,
+  checking module.json5/app.json5/package rules, icons, permissions, ads/privacy,
+  foldable/window UX, DevEco Testing listing precheck, AppAnalyzer reports, or
+  when writing HarmonyOS UI in the gtsdk + Navigation(MyNavPathStack) + Tabs +
+  MyNavbar style distilled from zufangtong. Complements harmony-next for API/IDE;
+  this skill owns listing quality checklists, FAQ-derived standards, and UI style.
 ---
 
-# 鸿蒙真机 · 真实用户全功能体验测试
+# HarmonyOS 上架检测标准 + 租房通 UI 写法
 
-用已连接的真机，以**普通用户**身份走完应用每一个可触达功能；判定时对照华为官方审核与上架检测要求；发现问题**立刻输出**，不要攒到最后才说。
+离线蒸馏自官方专题：[上架检测FAQ专题](https://developer.huawei.com/consumer/cn/forum/subject/2114199480637425001)。
 
-与现有技能分工：
+路径相对本 skill 目录（`harmony-listing-faq.skill/`）。与 `harmony-next` 分工：本 skill 管**上架质量标准与检查** + **zufangtong 界面写法风格**；API、DevEco、hdc、模拟器细节交给 `harmony-next`。
 
-| Skill | 职责 |
+## Routing
+
+1. **Classify** the request:
+   - Listing audit / 上架自检 → FAQ categories below
+   - **写 UI / 新页面 / 改界面 / ArkTS 视图** → [references/zufangtong-ui-style.md](references/zufangtong-ui-style.md) + 命中 [ux.md](references/ux.md) 行
+   - Both → open UI style + relevant FAQ category
+2. **FAQ only**：open matching file(s) under `references/` plus hit rows in [INDEX.md](references/INDEX.md). Full audit → all six category files.
+3. **Unknown category** → search `references/INDEX.md` by keyword (布局|权限|崩溃|功耗|启动|广告|卡片|折叠屏|…).
+
+| Intent keywords | File |
 | --- | --- |
-| **本 skill** | 真机用户旅程、功能覆盖、对照官方标准的即时缺陷报告 |
-| `harmony-next` | hdc / uitest / dumpLayout / 证据采集命令细节 |
-| `harmony-listing-faq` | 上架检测 FAQ 全文蒸馏（UX/稳定/性能/功耗/兼容/安全） |
+| 布局、字体、对比度、状态栏、图标、横竖屏、深色、挖孔、导航、窗口、元服务胶囊 | [references/ux.md](references/ux.md) |
+| 崩溃、卡死、内存泄漏、fd、线程过载 | [references/stability.md](references/stability.md) |
+| 动效、传感器、音频类型、后台、导航/音乐类型 | [references/power.md](references/power.md) |
+| 启动快、点击、滑动、转场、起播、Seek、流媒体 | [references/performance.md](references/performance.md) |
+| 包结构、权限清单、安装/升级、卡片、折叠屏、免安装、so、卸载、bundleName | [references/compatibility.md](references/compatibility.md) |
+| 广告、隐私、儿童、调试属性、名称图标一致性、频繁申请权限 | [references/security.md](references/security.md) |
+| 页面结构、Tab、NavPathStack、MyNavbar、ListView、表单、详情、对话框、zufangtong 风格 | [references/zufangtong-ui-style.md](references/zufangtong-ui-style.md) |
 
-技能根目录：`C:/Users/Administrator/.cursor/skills/harmony-ux-device-test/`
+Full title → URL map: [references/INDEX.md](references/INDEX.md).
 
-## 官方依据（必须对照）
+## Workflows
 
-开测前读 [references/official-standards.md](references/official-standards.md)。源链接：
+### A. Develop (follow standards while coding)
 
-| 文档 | URL |
-| --- | --- |
-| 应用市场审核指南 | https://developer.huawei.com/consumer/cn/doc/app/50104 |
-| 应用审核 FAQ | https://developer.huawei.com/consumer/cn/doc/app/50106 |
-| 文档中心条目 | https://developer.huawei.com/consumer/cn/doc/50180 |
-| 上架检测 FAQ 专题 | https://developer.huawei.com/consumer/cn/forum/subject/2114199480637425001 |
+When changing UI, lifecycle, window, media, permissions, or package config:
 
-执行规则：
+1. **UI 页面/视图** → 先读 [zufangtong-ui-style.md](references/zufangtong-ui-style.md)，选对应模板（Tab 主视图 / List Manager / Form / Detail）。
+2. Match the change to FAQ rows in INDEX / category file（尤其 [ux.md](references/ux.md)）。
+3. Reply with: **应满足** / **常见失败** / **修改要点**（配置、ArkTS/ArkUI、工程检查点）.
+4. Prefer concrete file targets (`app.json5`, `module.json5`, `route_map.json`, `pages/` vs `views/`, `common/MyNavbar`).
 
-1. **功能完备**（50104 §3）：每个入口必须可用，禁止「开发中」空壳、点击无响应、主路径闪退。
-2. **隐私与权限**（50104 §7）：首次同意、隐私政策可打开、权限允许/拒绝双路径、拒绝不死循环。
-3. **广告与弹窗**（50104 §5 / §3.7）：可关、标识清晰、不频繁打断、不挡系统返回。
-4. **体验红线**（上架检测 FAQ）：布局/安全区/热区/侧滑返回/崩溃卡死/点击反馈与滑动流畅——细则查 `harmony-listing-faq`。
-5. **50106 / 50180**：报障或不确定时打开现行页面标题与 FAQ 条目核对；与本地摘要冲突以线上为准。
-6. 缺陷尽量带 `对照: 50104 §x` 或 `【上架检测FAQ】标题` + 源 URL。
+### B. Review / 上架自检
 
-## 何时启用
+1. Scope: full audit → all six FAQ files + UI style spot-check; partial → only relevant categories.
+2. Emit a graded checklist:
+   - **阻断**：不改无法过检/易被驳回
+   - **高风险**：常见驳回或体验红线
+   - **建议**：体验增强，非硬阻断时注明
+3. Each finding: FAQ title + 标准摘要 + 证据路径 + 修改建议 + 源链接（INDEX 中有则给出）.
+4. UI 实现类问题可引用 zufangtong 风格 §（如安全区 padding、Navbar、双轨导航）.
 
-用户提到：真机测试、连上手机、体验应用、全功能测试、点一下每个功能、用户视角测、对照审核指南/上架检测、发现问题及时说 → **立即按本 skill 执行**。
+### C. Tools (do not reinvent)
 
-## 前置条件（每次开测先跑）
+- Local: **DevEco Testing** 应用上架预检（黑盒）
+- Cloud: 云测试上架预检
+- Diagnose: 预检报告导入 **AppAnalyzer**
+- For IDE/device commands, use `harmony-next` scripts/playbooks.
 
-```powershell
-hdc list targets
-hdc shell param get const.product.model
-hdc shell "aa dump -l"
-```
+### D. New UI page (zufangtong style)
 
-- 无 `Connected` target → 停，请用户开 USB 调试 / 授权。
-- 多设备 → 用 `hdc -t <serial>`，全程固定同一台。
-- 未指定包名 → 从前台 `aa dump -l` 取 `FOREGROUND` 的 `bundle name`；仍不清则列出近期 mission 让用户确认。
-- 启动应用（用户未要求勿卸载/清数据）：
+1. **定层级**：Tab 内容 → `views/mainViews/`；栈内子页 → `views/domainViews/` + `XxxViewBuilder` + `route_map.json`；H5 → `pages/WebPage` + `router`.
+2. **定导航**：栈内 `MyNavPathStack.pushPath/pop`；跨 Ability `router`；勿混用。
+3. **套壳**：`NavDestination` + `hideTitleBar(true)` + `MyNavbar`；Tab 页无 `NavDestination`。
+4. **套视觉**：`main_background` / `main_color`；边距 15vp；卡片 radius 10/15；`clickEffect(HEAVY, 0.5)`。
+5. **套交互**：校验 toast；危险 `showDialog`；Loading `MyLoadingDialog`；数据变更 `emitter.emit('changeHouse')`。
+6. **套安全区**：`AppSpace.TOP_SPACE` / `BOTTOM_SPACE`；列表底 `BOTTOM_SPACE * 2 + 15`。
+7. **过 UX FAQ**：对照 [ux.md](references/ux.md) 底部条、状态栏、字体、热区、侧滑返回。
 
-```powershell
-hdc shell aa start -a EntryAbility -b <bundleName>
-```
+详细 API 与骨架代码见 [references/zufangtong-ui-style.md](references/zufangtong-ui-style.md)。
 
-Ability 名以工程 `module.json5` 为准；不确定时用 `hdc shell bm dump -n <bundleName>`。
-
-## 核心原则（必须遵守）
-
-1. **真实用户**：按「打开 → 浏览 → 点按钮 → 填表 → 提交 → 返回 → 换 Tab」顺序，不跳过引导/空态/错误态。
-2. **全功能覆盖**：每个 Tab、入口、列表项、表单、设置项、权限弹窗、分享/登录/搜索都要走到；不可达要记「阻塞」，不可静默跳过。
-3. **即时报障**：任一功能异常，**立刻**向用户输出一条缺陷（见下方模板），再继续测其它路径。
-4. **证据优先**：报障必须附截图 + 关键 layout 节点；崩溃/卡死再附短段 hilog。
-5. **坐标空间**：点击坐标必须来自当前 `dumpLayout` 的 `bounds` 中心；禁止用缩放预览图估点。
-6. **不破坏数据**：默认不 `bm uninstall`、不 `rm` 用户数据；需要清缓存须用户明确同意。
-7. **读图**：拉回的 PNG 用 Read 工具查看，结合 layout 判断文案截断、空白页、错位、遮挡。
-
-## 标准操作循环（每个功能点）
-
-对每个待测项执行：
-
-```text
-观察 → 操作 → 再观察 → 判定 → (失败则即时报告) → 下一功能
-```
-
-### 1. 观察
-
-```powershell
-# 设备上落盘后 file recv 到本机 artifacts
-hdc shell uitest dumpLayout -p /data/local/tmp/ux_layout.json -a
-hdc file recv /data/local/tmp/ux_layout.json <artifactDir>/layout_<step>.json
-hdc shell uitest screenCap -p /data/local/tmp/ux_cap.png
-hdc file recv /data/local/tmp/ux_cap.png <artifactDir>/cap_<step>.png
-```
-
-也可用 `harmony-next` 的 `device_evidence_bundle.py` / `device_ui_action.py`（有 DevEco 路径时）。
-
-Windows 建议产物目录：`d:/_Document/_Usually/WorkFile/.ux-test/<bundle>-<yyyyMMdd-HHmm>/`
-
-### 2. 操作
-
-```powershell
-hdc shell uitest uiInput click <x> <y>
-hdc shell uitest uiInput swipe <x1> <y1> <x2> <y2> [velocity]
-hdc shell uitest uiInput inputText <x> <y> "<text>"
-hdc shell uitest uiInput text "<text>"
-hdc shell uitest uiInput keyEvent Back
-hdc shell uitest uiInput dircFling <0|1|2|3>   # left right up down
-```
-
-优先按可见 `text` / `id` / `description` 解析 bounds；同文案多节点用索引或更大可点区域。
-
-### 3. 判定（用户视角）
-
-通过：界面有明确反馈；结果符合入口承诺；可返回；无崩溃/白屏/连点无响应。
-
-失败（立刻报告）：闪退、ANR/卡死、白屏/错页、按钮无响应、文案错误/截断遮挡、流程走不通、错误无提示、权限死循环、数据丢失、严重卡顿。
-
-### 4. 即时缺陷输出模板
-
-发现问题后**马上**发（不要等总结）：
+## Output template
 
 ```markdown
-### 缺陷 [<severity>] <短标题>
-- 对照：50104 §3.x / 【上架检测FAQ】…（能映射则写）
-- 源：https://developer.huawei.com/consumer/cn/doc/app/50104
-- 包名/页面：`<bundle>` / `<当前页可见标题或路由推断>`
-- 步骤：1. … 2. … 3. …
-- 期望：…
-- 实际：…
-- 证据：`cap_xxx.png`、`layout_xxx.json`（关键节点 text/bounds）
-- 复现：稳定 / 偶发（约 n 次中 m 次）
-- 日志：（仅崩溃卡死时，hilog 末 30～80 行）
+### [阻断|高风险|建议] 【上架检测FAQ】标题
+- 分类: ux|stability|power|performance|compatibility|security
+- 标准: …
+- 证据: path / 现象
+- 修改: …
+- 源: https://developer.huawei.com/consumer/cn/forum/topic/...
 ```
 
-严重级别：
-
-| 级别 | 含义 |
-| --- | --- |
-| P0 | 启动失败、主流程崩溃、数据损坏、无法退出 |
-| P1 | 核心功能不可用、错误结果、严重遮挡导致不可用 |
-| P2 | 次要功能失败、明显体验问题、文案/布局明显错误 |
-| P3 | 轻微 UI、文案笔误、低优先级体验建议 |
-
-## 全功能覆盖工作流
-
-复制进度清单并边测边勾：
-
-```text
-覆盖进度
-- [ ] 0. 设备与包名确认；记下对照文档版本意图（50104/50106/专题）
-- [ ] 1. 冷启动 / 首屏 / 引导 / 隐私同意与政策入口（50104 §7）
-- [ ] 2. 主导航（Tab / 侧栏 / 底部栏）逐项进入（§3 功能完备）
-- [ ] 3. 每个 Tab 内：列表滚动、空态、下拉刷新（若有）+ 滑动流畅抽查
-- [ ] 4. 每个列表至少点开 1～2 条详情并返回（含侧滑/返回键）
-- [ ] 5. 搜索 / 筛选 / 排序（若有）
-- [ ] 6. 表单：合法提交 + 至少 1 组非法/空提交
-- [ ] 7. 设置 / 关于 / 反馈 / 隐私政策 / 注销（有则测）
-- [ ] 8. 登录注册找回（有则测；无账号先问用户 / 演示帐号）
-- [ ] 9. 权限弹窗：允许与拒绝各走一遍（拒绝后是否可再进，§7.19）
-- [ ] 10. 广告/推送弹窗（有则测关闭与频率，§5 / §3.7）
-- [ ] 11. 系统键：返回、Home 再回前台、分屏/旋转（若产品支持）
-- [ ] 12. 上架 UX 红线抽查（安全区、热区、状态栏、挖孔）
-- [ ] 13. 异常网：可关网抽测加载失败提示（可选）
-- [ ] 14. 汇总报告（含官方条款对照索引）
-```
-
-### A. 建功能地图（先图后点）
-
-1. dump 首屏 layout，列出可点击文本/按钮/Tab。
-2. 若工作区有工程：扫 `main_pages.json`、`route_map.json`、`pages/`、`views/` 补全入口，避免漏页。
-3. 输出「功能地图」给用户一眼确认，再开始深测。
-
-### B. 深度体验规则
-
-- **每个 Tab 至少**：进入 → 主操作 1 次 → 二级页 → 返回，确认状态仍正确。
-- **列表**：滑到底；注意重复加载、空白、错乱高度。
-- **表单**：必填校验、键盘遮挡、提交 loading、成功/失败提示。
-- **媒体**：播放/暂停/进度（有则测）。
-- **Web/半屏**：加载与返回是否困在 H5。
-- **钱/提交类**：只走到确认页或用测试账号；不真实付款 unless 用户明确要求。
-
-### C. 稳定性旁路（不替代功能测）
-
-怀疑卡死/崩溃时：
-
-```powershell
-hdc shell "hilog -x | tail -n 80"
-hdc shell aa dump -l
-```
-
-记录后 `force-stop` 再冷启，继续其它功能；P0 启动失败则暂停深测并优先报告。
-
-## 结束时的汇总报告
-
-全部可测路径走完（或用户叫停）后输出：
+UI 实现建议可附加：
 
 ```markdown
-## 真机体验报告
-- 设备：<model> / <serial>
-- 应用：<bundle> <version if known>
-- 时长 / 覆盖：Tab x/y；入口 m/n
-- P0/P1/P2/P3 计数
-- 已即时同步的缺陷列表（标题 + 级别）
-- 未测项与原因（无账号、需真支付、入口灰掉…）
-- 总体结论：可继续开发 / 需修主路径后再测
+### 【zufangtong UI】模板/规则
+- 适用: Tab|List|Form|Detail|Web
+- 参照: references/zufangtong-ui-style.md §N
+- 修改: file path + 要点
 ```
 
-详细字段见 [references/report-template.md](references/report-template.md)。检查项细则见 [references/checklist.md](references/checklist.md)。官方条款蒸馏见 [references/official-standards.md](references/official-standards.md)。
+## High-priority blockers (always check on listing)
 
-## 辅助脚本
+- `requestPermissions` 完整（user_grant 含 `reason` + `usedScene`）
+- 包结构 / Entry HAP / bundleName·versionCode 一致 / 设备类型 / SDK 版本
+- 应用与元服务免安装属性正确；元服务禁 so；应用支持 64 位 so
+- 分层图标（前景+背景 1024）与必须有图标
+- 发布包 `debug` 关闭
+- 启动/运行无 CppCrash、JsCrash、冻屏、侧滑无法返回
+- 卸载无残留；广告可关闭且关闭热区足够；不频繁弹广告/诱导隐私
+- UI：`route_map` 与 `pushPath({ name })` 一致；底部安全区不挡操作；`hideTitleBar` + 自绘 Navbar
 
-```powershell
-powershell -ExecutionPolicy Bypass -File "C:/Users/Administrator/.cursor/skills/harmony-ux-device-test/scripts/capture_step.ps1" `
-  -ArtifactDir "d:/_Document/_Usually/WorkFile/.ux-test/run1" -Step "01_home"
-```
+## Boundaries
 
-将当前界面 `dumpLayout` + `screenCap` 拉到本机并打印可点击文本摘要。
-
-## 禁止事项
-
-- 不要用桌面鼠标坐标点手机画面。
-- 不要一次盲点多个控件还不 dump。
-- 不要把「只跑了 DevEco 上架预检」当成「已完成真实用户全功能体验」。
-- 不要在未报障的情况下声称「全功能正常」或「符合审核指南」。
-- 不要把 hypium 工程测试与本次真机手测混为一谈（除非用户要跑自动化用例）。
-- 不要编造未打开过的官方条款号；不确定就写现象并给源文档链接。
+- Do not paste entire forum posts into chat; cite distilled rules + source URL.
+- Standards evolve; if online FAQ conflicts with local text, prefer the live topic page and note the delta.
+- This skill does not replace AppGallery 《审核指南》内容合规全文；安全类聚焦检测 FAQ 覆盖项。
+- zufangtong UI 风格蒸馏范围：**排除** `MineView.ets`、`LoginView.ets`、`LogoutView.ets`；其余 `entry/src/main/ets` 界面写法为准。登录/个人中心页不以此风格为强制模板。
